@@ -1,0 +1,72 @@
+services:
+  backend:
+    build:
+      context: ../back-end
+    container_name: medical-chatbot-backend
+    env_file:
+      - ../back-end/.env
+    environment:
+      PORT: ${BACKEND_PORT}
+      BI_DATABASE_URL: ${BI_DATABASE_URL}
+      SUPERSET_URL: ${SUPERSET_URL}
+      SUPERSET_EMBED_ALLOWED_DOMAINS: ${SUPERSET_EMBED_ALLOWED_DOMAINS}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+    depends_on:
+      - bi-postgres
+      - superset
+    ports:
+      - "${BACKEND_PORT}:${BACKEND_PORT}"
+    volumes:
+      - ../back-end:/app
+      - backend_node_modules:/app/node_modules
+    command: yarn dev
+
+  frontend:
+    build:
+      context: ../front-end
+    container_name: medical-chatbot-frontend
+    env_file:
+      - ../front-end/.env
+    environment:
+      VITE_API_ROOT: ${VITE_API_ROOT}
+    depends_on:
+      - backend
+    ports:
+      - "${FRONTEND_PORT}:5173"
+    volumes:
+      - ../front-end:/app
+      - frontend_node_modules:/app/node_modules
+    command: yarn dev --host 0.0.0.0
+
+  bi-postgres:
+    image: postgres:16
+    container_name: medical-chatbot-bi-postgres
+    environment:
+      POSTGRES_USER: ${BI_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${BI_POSTGRES_PASSWORD}
+      POSTGRES_DB: ${BI_POSTGRES_DB}
+    ports:
+      - "${BI_POSTGRES_PORT}:5432"
+    volumes:
+      - medical_chatbot_bi_postgres:/var/lib/postgresql/data
+
+  superset:
+    build:
+      context: ../back-end/superset
+    container_name: medical-chatbot-superset
+    depends_on:
+      - bi-postgres
+    environment:
+      SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "${SUPERSET_PORT}:8088"
+    volumes:
+      - medical_chatbot_superset_home:/app/superset_home
+
+volumes:
+  backend_node_modules:
+  frontend_node_modules:
+  medical_chatbot_bi_postgres:
+  medical_chatbot_superset_home:
